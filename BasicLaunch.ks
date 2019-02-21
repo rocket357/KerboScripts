@@ -33,8 +33,8 @@ LOCK STEERING TO MYSTEER. // from now on we'll be able to change steering by jus
 UNTIL SHIP:APOAPSIS > 100000 { //Remember, all altitudes will be in meters, not kilometers
 
     IF boostereject = 0 AND STAGE:SOLIDFUEL < 0.1 {
-		    SET boostereject TO 1.
-        STAGE.
+        SET boostereject TO 1.
+        STAGE.  // could be dangerous if not using a solid fuel booster setup!
     }
 
     //For the initial ascent, we want our steering to be straight
