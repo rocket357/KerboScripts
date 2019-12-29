@@ -1,6 +1,8 @@
 // Contains code from https://ksp-kos.github.io/KOS/tutorials/quickstart.html#step-7-putting-it-all-together
 
-//hellolaunch
+GLOBAL MYHEADING IS 0. // NORTH = 0, EAST = 90, SOUTH = etc...
+GLOBAL MYORBIT IS 100000. // ORBIT ALTITUDE IN METERS
+GLOBAL MYPITCH IS 90. // PITCH ABOVE/BELOW HORIZON.  90 is VERTICAL UP, -90 IS VERTICAL DOWN
 
 //First, we'll clear the terminal screen to make it look nice
 CLEARSCREEN.
@@ -28,9 +30,9 @@ SET boostereject TO 0.
 
 //This will be our main control loop for the ascent. 
 // Adjusted for my rocket.
-SET MYSTEER TO HEADING(90,90).
+SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
 LOCK STEERING TO MYSTEER. // from now on we'll be able to change steering by just assigning a new value to MYSTEER
-UNTIL SHIP:APOAPSIS > 100000 { //Remember, all altitudes will be in meters, not kilometers
+UNTIL SHIP:APOAPSIS > MYORBIT { //Remember, all altitudes will be in meters, not kilometers
 
     IF boostereject = 0 AND STAGE:SOLIDFUEL < 0.1 {
         SET boostereject TO 1.
@@ -42,54 +44,58 @@ UNTIL SHIP:APOAPSIS > 100000 { //Remember, all altitudes will be in meters, not 
     IF SHIP:VELOCITY:SURFACE:MAG < 100 {
         //This sets our steering 90 degrees up and yawed to the compass
         //heading of 90 degrees (east)
-        SET MYSTEER TO HEADING(90,90).
+        SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
 
     //Once we pass 100m/s, we want to pitch down ten degrees
     } ELSE IF SHIP:VELOCITY:SURFACE:MAG >= 100 AND SHIP:VELOCITY:SURFACE:MAG < 200 {
-        SET MYSTEER TO HEADING(90,90).
+        SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
         PRINT "APOAPSIS:  " + ROUND(SHIP:APOAPSIS,0) AT (0,16).
 
     //Each successive IF statement checks to see if our velocity
     //is within a 100m/s block and adjusts our heading down another
     //ten degrees if so
     } ELSE IF SHIP:VELOCITY:SURFACE:MAG >= 200 AND SHIP:VELOCITY:SURFACE:MAG < 300 {
-        SET MYSTEER TO HEADING(90,90).
+        SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
         PRINT "APOAPSIS:  " + ROUND(SHIP:APOAPSIS,0) AT (0,16).
 
     } ELSE IF SHIP:VELOCITY:SURFACE:MAG >= 300 AND SHIP:VELOCITY:SURFACE:MAG < 400 {
-        SET MYSTEER TO HEADING(90,90).
+        SET MYSTEER TO HEADING(MYHEADING,90).
         PRINT "APOAPSIS:  " + ROUND(SHIP:APOAPSIS,0) AT (0,16).
 
     } ELSE IF SHIP:VELOCITY:SURFACE:MAG >= 400 AND SHIP:VELOCITY:SURFACE:MAG < 500 {
-        SET MYSTEER TO HEADING(90,80).
-        PRINT "Pitching to 80 degrees" AT(0,15).
+		SET MYPITCH TO 80.
+        SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
+        PRINT "Pitching to " + MYPITCH + " degrees" AT(0,15).
         LOCK THROTTLE TO 0.82.
         PRINT "APOAPSIS:  " + ROUND(SHIP:APOAPSIS,0) AT (0,16).
 		
     } ELSE IF SHIP:VELOCITY:SURFACE:MAG >= 500 AND SHIP:VELOCITY:SURFACE:MAG < 600 {
-        SET MYSTEER TO HEADING(90,70).
-        PRINT "Pitching to 70 degrees" AT(0,15).
+		SET MYPITCH TO 70.
+        SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
+        PRINT "Pitching to " + MYPITCH + " degrees" AT(0,15).
         LOCK THROTTLE TO 0.67.
         PRINT "APOAPSIS:  " + ROUND(SHIP:APOAPSIS,0) AT (0,16).
 
     } ELSE IF SHIP:VELOCITY:SURFACE:MAG >= 600 AND SHIP:VELOCITY:SURFACE:MAG < 700 {
-        SET MYSTEER TO HEADING(90,60).
-        PRINT "Pitching to 60 degrees" AT(0,15).
+		SET MYPITCH TO 60.
+        SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
+        PRINT "Pitching to " + MYPITCH + " degrees" AT(0,15).
         LOCK THROTTLE TO 0.5.
         PRINT "APOAPSIS:  " + ROUND(SHIP:APOAPSIS,0) AT (0,16).
 
     } ELSE IF SHIP:VELOCITY:SURFACE:MAG >= 700 AND SHIP:VELOCITY:SURFACE:MAG < 800 {
-        SET MYSTEER TO HEADING(90,50).
-        PRINT "Pitching to 50 degrees" AT(0,15).
+		SET MYPITCH TO 50.
+        SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
+        PRINT "Pitching to " + MYPITCH + " degrees" AT(0,15).
         LOCK THROTTLE TO 0.33.
         PRINT "APOAPSIS:  " + ROUND(SHIP:APOAPSIS,0) AT (0,16).
 
     //Beyond 800m/s, we can keep facing towards 10 degrees above the horizon and wait
     //for the main loop to recognize that our apoapsis is above 100km
     } ELSE IF SHIP:VELOCITY:SURFACE:MAG >= 800 {
-        SET MYSTEER TO HEADING(90,40).
-        PRINT "Pitching to 40 degrees" AT(0,15).
-        LOCK THROTTLE TO 0.17.
+		SET MYPITCH TO 40.
+        SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
+        PRINT "Pitching to " + MYPITCH + " degrees" AT(0,15).
         PRINT "APOAPSIS:  " + ROUND(SHIP:APOAPSIS,0) AT (0,16).
     }.
 }.
@@ -101,7 +107,8 @@ PRINT "100km apoapsis reached, cutting throttle".
 LOCK THROTTLE TO 0.
 
 // while we're waiting, let the pilot/RCS maintain heading.
-SET MYSTEER TO HEADING(90,-10).
+SET MYPITCH TO -10.
+SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
 SAS ON.
 RCS ON.
 
@@ -114,7 +121,7 @@ UNTIL SHIP:ALTITUDE > 90000 {
 // set heading and throttle to achieve orbital speed
 SAS OFF.
 RCS OFF.
-SET MYSTEER TO HEADING(90,-10).
+SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
 LOCK THROTTLE TO 1.0.
 PRINT "Building orbital speed" AT (0,15).
 
