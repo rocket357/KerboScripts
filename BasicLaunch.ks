@@ -99,7 +99,7 @@ SAS OFF.
 RCS OFF.
 SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
 LOCK THROTTLE TO 1.0.
-SET MYSTATUS = "Building Orbital Speed.".
+SET MYSTATUS TO "Building Orbital Speed.".
 update_screen().
 
 // do this until the orbital min altitude hits 75km
