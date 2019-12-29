@@ -1,6 +1,6 @@
 // Contains code from https://ksp-kos.github.io/KOS/tutorials/quickstart.html#step-7-putting-it-all-together
 
-GLOBAL MYSTATUS IS "PRELAUNCH"
+GLOBAL MYSTATUS IS "PRELAUNCH".
 GLOBAL MYHEADING IS 0. // NORTH = 0, EAST = 90, SOUTH = etc...
 GLOBAL MYORBIT IS 100000. // ORBIT ALTITUDE IN METERS
 GLOBAL MYPITCH IS 90. // PITCH ABOVE/BELOW HORIZON.  90 is VERTICAL UP, -90 IS VERTICAL DOWN
