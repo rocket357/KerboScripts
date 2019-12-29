@@ -6,15 +6,24 @@ GLOBAL MYORBIT IS 100000. // ORBIT ALTITUDE IN METERS
 GLOBAL MYPITCH IS 90. // PITCH ABOVE/BELOW HORIZON.  90 is VERTICAL UP, -90 IS VERTICAL DOWN
 
 function update_screen {
+	IF SHIP:PERIAPSIS < 70000 {
+		SET MYPERIAPSIS TO "Sub-orbital flight.".
+	} ELSE {
+		SET MYPERIAPSIS TO ROUND(SHIP:PERIAPSIS,0).
+	}.
 	CLEARSCREEN.
-	PRINT "THROTTLE:  " + THROTTLE AT (0,11).
-	PRINT "STATUS:    " + MYSTATUS AT (0,12).
-	PRINT "HEADING:   " + MYHEADING at (0,14).
-        PRINT "PITCH:     " + MYPITCH + " degrees" AT(0,15).
-        PRINT "APOAPSIS:  " + ROUND(SHIP:APOAPSIS,0) AT (0,16).
-	PRINT "PERIAPSIS: " + ROUND(SHIP:PERIAPSIS,0) AT (0,17).
+	
+	PRINT "STATUS:    " + MYSTATUS AT (0,11).
+	PRINT "THROTTLE:  " + ROUND(THROTTLE * 100,0) + " % " AT (0,12).
+	PRINT "HEADING:   " + MYHEADING at (0,13).
+    PRINT "PITCH:     " + MYPITCH + " degrees" AT(0,14).
+	
+	PRINT "ALTITUDE:  " + ROUND(SHIP:ALTITUDE,0) AT (0,16).
+    PRINT "APOAPSIS:  " + ROUND(SHIP:APOAPSIS,0) AT (0,17).
+	PRINT "PERIAPSIS: " + MYPERIAPSIS AT (0,18).
 }.
 
+GLOBAL boostereject IS 0.
 LOCK THROTTLE TO 1.0.   // 1.0 is the max, 0.0 is idle.
 
 //This is our countdown loop, which cycles from 10 to 0
@@ -28,25 +37,28 @@ CLEARSCREEN.
 
 //This is a trigger that constantly checks to see if our thrust is zero.
 WHEN MAXTHRUST = 0 THEN {
-    SET MYSTATUS TO "Staging...".
-    update_screen().
-    STAGE.
+    IF boostereject = 0 AND SHIP:ALTITUDE > 1000 {
+		SET MYSTATUS TO "MAIN STAGE!".
+        SET boostereject TO 1.
+		SET SHIP:CONTROL:ROLL TO 1.0. // build up some rotation to throw boosters lulz Warn onboard kerbals first.
+		WAIT 2.
+        STAGE.  // launch the boosters into the abyss.
+		WAIT 2.
+		SET SHIP:CONTROL:ROLL TO 0.
+    } ELSE {
+		SET MYSTATUS TO "BOOSTER STAGE!".
+		STAGE.
+	}.
+	update_screen().	
     PRESERVE.
 }.
 
-SET boostereject TO 0.
 
 //This will be our main control loop for the ascent. 
 // Adjusted for my rocket.
 SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
 LOCK STEERING TO MYSTEER. // from now on we'll be able to change steering by just assigning a new value to MYSTEER
 UNTIL SHIP:APOAPSIS > MYORBIT { //Remember, all altitudes will be in meters, not kilometers
-    SET MYSTATUS TO "Gaining altitude.".
-
-    IF boostereject = 0 AND STAGE:SOLIDFUEL < 0.1 {
-        SET boostereject TO 1.
-        STAGE.  // could be dangerous if not using a solid fuel booster setup!
-    }
 
     //For the initial ascent, we want our steering to be straight
     //up and rolled to MYHEADING
@@ -75,10 +87,7 @@ UNTIL SHIP:APOAPSIS > MYORBIT { //Remember, all altitudes will be in meters, not
     WAIT 1.
 }.
 
-PRINT "100km apoapsis reached, cutting throttle".
-
-//At this point, our apoapsis is above 100km and our main loop has ended. Next
-//we'll make sure our throttle is zero and that we're pointed prograde
+SET MYSTATUS TO "Target APOAPSIS reached, throttle down".
 LOCK THROTTLE TO 0.
 
 // while we're waiting, let the pilot/RCS maintain heading.
@@ -88,8 +97,9 @@ update_screen().
 SAS ON.
 RCS ON.
 
-// wait until we hit 90km
-UNTIL SHIP:ALTITUDE > 90000 {
+// We need to hit ~90% of the target apoapsis
+SET TARGETAPO TO MYORBIT * 0.9.
+UNTIL SHIP:ALTITUDE > TARGETAPO {
     update_screen().
     WAIT 1.
 }.
@@ -104,12 +114,21 @@ update_screen().
 
 // do this until the orbital min altitude hits 75km
 UNTIL SHIP:PERIAPSIS > 75000 {
+	// Keep the APOAPSIS as close as we can to MYORBIT
+	IF SHIP:APOAPSIS * 1.02 < MYORBIT {
+		SET MYPITCH TO MYPITCH + 1.
+	} ELSE IF SHIP:APOAPSIS * 0.98 > MYORBIT {
+		SET MYPITCH TO MYPITCH - 1.
+	}.
+    SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
     update_screen().
-    WAIT 1.
+    WAIT 5.
 }.
+
 
 // we're in orbit, dammit
 LOCK THROTTLE TO 0.0.
+update_screen().
 WAIT 10.  // simmah down!
 
 // let the pilot take over with RCS and stuff
@@ -123,4 +142,6 @@ SET SASMODE TO "STABILITY".
 SAS ON.
 RCS ON.
 SET SHIP:CONTROL:PILOTMAINTHROTTLE TO 0.
+SET MYSTATUS TO "Returning Control to Pilot.".
+update_screen().
 // :wq
