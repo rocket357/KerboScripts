@@ -27,14 +27,17 @@ function update_screen {
 	}.
 	CLEARSCREEN.
 	
-	PRINT "STATUS:    " + MYSTATUS AT (0,11).
-	PRINT "THROTTLE:  " + ROUND(THROTTLE * 100,0) + " % " AT (0,12).
-	PRINT "HEADING:   " + MYHEADING at (0,13).
-    PRINT "PITCH:     " + MYPITCH + " degrees" AT(0,14).
+	PRINT "NAVIGATION SETTINGS:" AT (0,6).
+	PRINT "  STATUS:       " + MYSTATUS AT (0,7).
+	PRINT "  TARGET ORBIT: " + MYORBIT AT (0,8).
+	PRINT "  THROTTLE:     " + ROUND(THROTTLE * 100,0) + " % " AT (0,9).
+	PRINT "  HEADING:      " + MYHEADING at (0,10).
+        PRINT "  PITCH:        " + MYPITCH + " degrees" AT(0,11).
 	
-	PRINT "ALTITUDE:  " + ROUND(SHIP:ALTITUDE,0) AT (0,16).
-    PRINT "APOAPSIS:  " + ROUND(SHIP:APOAPSIS,0) AT (0,17).
-	PRINT "PERIAPSIS: " + MYPERIAPSIS AT (0,18).
+	PRINT "POSITION:" AT (0,15).
+	PRINT "  ALTITUDE:     " + ROUND(SHIP:ALTITUDE,0) AT (0,16).
+        PRINT "  APOAPSIS:     " + ROUND(SHIP:APOAPSIS,0) AT (0,17).
+	PRINT "  PERIAPSIS:    " + MYPERIAPSIS AT (0,18).
 }.
 
 GLOBAL boostereject IS 0.
@@ -152,3 +155,7 @@ SET SHIP:CONTROL:PILOTMAINTHROTTLE TO 0.
 SET MYSTATUS TO "Returning Control to Pilot.".
 update_screen().
 // :wq
+UNTIL 1 < 0 { // loop forever!  (Screen updates)
+	WAIT 1.
+	update_screen().
+}
