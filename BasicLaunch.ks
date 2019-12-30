@@ -10,13 +10,16 @@ function check_threshold {
 	parameter tolerance.
 	parameter target.
 	
-	PRINT "check_threshold: " + metric + " " + tolerance + " " + target AT (0,1).
+	// DEBUG
+	PRINT "check_threshold: " + metric + " " + tolerance + " " + target AT (10,3).
 	
 	IF metric * (1 + tolerance / 100) < target AND metric * (1 - tolerance / 100) > target {
-		RETURN 1.
+		RETURN 1.  // within tolerance
+	} ELSE IF metric * (1 + tolerance / 100) < target {
+		RETURN -1.  // below threshold
+	} ELSE {
+		RETURN 2.  // over threshold
 	}.
-	
-	RETURN 0.
 }.
 
 function update_screen {
@@ -30,6 +33,7 @@ function update_screen {
 	PRINT "MISSION:" AT (0,0).
 	PRINT "  TARGET ORBIT: " + MYORBIT AT (0,1).
 	PRINT "  STATUS:       " + MYSTATUS AT (0,2).
+	PRINT "  DEBUG: " AT (0,3).
 	
 	PRINT "NAVIGATION SETTINGS:" AT (0,6).
 	PRINT "  THROTTLE:     " + ROUND(THROTTLE * 100,0) + " % " AT (0,7).
