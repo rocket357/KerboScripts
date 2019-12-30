@@ -2,8 +2,22 @@
 
 GLOBAL MYSTATUS IS "PRELAUNCH".
 GLOBAL MYHEADING IS 0. // NORTH = 0, EAST = 90, SOUTH = etc...
-GLOBAL MYORBIT IS 100000. // ORBIT ALTITUDE IN METERS
+GLOBAL MYORBIT IS 250000. // ORBIT ALTITUDE IN METERS
 GLOBAL MYPITCH IS 90. // PITCH ABOVE/BELOW HORIZON.  90 is VERTICAL UP, -90 IS VERTICAL DOWN
+
+function check_threshold {
+	parameter metric.
+	parameter tolerance.
+	parameter target.
+	
+	PRINT "check_threshold: " + metric + " " + tolerance + " " + target AT (0,1).
+	
+	IF metric * (1 + tolerance / 100) < target AND metric * (1 - tolerance / 100) > target {
+		RETURN 1.
+	}.
+	
+	RETURN 0.
+}.
 
 function update_screen {
 	IF SHIP:PERIAPSIS < 70000 {
@@ -40,7 +54,7 @@ WHEN MAXTHRUST = 0 THEN {
     IF boostereject = 0 AND SHIP:ALTITUDE > 1000 {
 		SET MYSTATUS TO "MAIN STAGE!".
         SET boostereject TO 1.
-		SET SHIP:CONTROL:ROLL TO 1.0. // build up some rotation to throw boosters lulz Warn onboard kerbals first.
+		//SET SHIP:CONTROL:ROLL TO 1.0. // build up some rotation to throw boosters lulz Warn onboard kerbals first.
 		WAIT 2.
         STAGE.  // launch the boosters into the abyss.
 		WAIT 2.
@@ -62,26 +76,8 @@ UNTIL SHIP:APOAPSIS > MYORBIT { //Remember, all altitudes will be in meters, not
 
     //For the initial ascent, we want our steering to be straight
     //up and rolled to MYHEADING
-    IF SHIP:VELOCITY:SURFACE:MAG >= 400 AND SHIP:VELOCITY:SURFACE:MAG < 500 {
-        SET MYPITCH TO 80.
-        LOCK THROTTLE TO 0.82.
-		
-    } ELSE IF SHIP:VELOCITY:SURFACE:MAG >= 500 AND SHIP:VELOCITY:SURFACE:MAG < 600 {
-	SET MYPITCH TO 70.
-        LOCK THROTTLE TO 0.67.
-
-    } ELSE IF SHIP:VELOCITY:SURFACE:MAG >= 600 AND SHIP:VELOCITY:SURFACE:MAG < 700 {
-	SET MYPITCH TO 60.
-        LOCK THROTTLE TO 0.5.
-
-    } ELSE IF SHIP:VELOCITY:SURFACE:MAG >= 700 AND SHIP:VELOCITY:SURFACE:MAG < 800 {
-	SET MYPITCH TO 50.
-        LOCK THROTTLE TO 0.33.
-
-    } ELSE IF SHIP:VELOCITY:SURFACE:MAG >= 800 {
-	SET MYPITCH TO 40.
-    }.
-
+    SET MYPITCH TO ROUND(90*((MYORBIT - SHIP:ALTITUDE) / MYORBIT), 0).
+	
     SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
     update_screen().
     WAIT 1.
@@ -89,13 +85,6 @@ UNTIL SHIP:APOAPSIS > MYORBIT { //Remember, all altitudes will be in meters, not
 
 SET MYSTATUS TO "Target APOAPSIS reached, throttle down".
 LOCK THROTTLE TO 0.
-
-// while we're waiting, let the pilot/RCS maintain heading.
-SET MYPITCH TO -10.
-SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
-update_screen().
-SAS ON.
-RCS ON.
 
 // We need to hit ~90% of the target apoapsis
 SET TARGETAPO TO MYORBIT * 0.9.
@@ -105,24 +94,38 @@ UNTIL SHIP:ALTITUDE > TARGETAPO {
 }.
 
 // set heading and throttle to achieve orbital speed
-SAS OFF.
-RCS OFF.
+SET MYPITCH TO -5.
 SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
 LOCK THROTTLE TO 1.0.
 SET MYSTATUS TO "Building Orbital Speed.".
 update_screen().
 
-// do this until the orbital min altitude hits 75km
-UNTIL SHIP:PERIAPSIS > 75000 {
+WAIT 2. // let heading/pitch stabilize
+
+UNTIL SHIP:PERIAPSIS > MYORBIT * 0.9 {
 	// Keep the APOAPSIS as close as we can to MYORBIT
-	IF SHIP:APOAPSIS * 1.02 < MYORBIT {
-		SET MYPITCH TO MYPITCH + 1.
-	} ELSE IF SHIP:APOAPSIS * 0.98 > MYORBIT {
-		SET MYPITCH TO MYPITCH - 1.
+	IF SHIP:VERTICALSPEED < 0 {
+		SET MYPITCH TO 5.
+	} ELSE IF SHIP:VERTICALSPEED > 0 {
+		SET MYPITCH TO -5.
 	}.
     SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
     update_screen().
     WAIT 5.
+}.
+
+// NORMALIZE MYORBIT
+// check that we're within 5% of PERIAPSIS
+IF check_threshold(SHIP:ALTITUDE, 5, SHIP:PERIAPSIS) {
+	SAS ON.
+	SET SASMODE TO "RETROGRADE".
+	LOCK THROTTLE TO 0.25.
+	UNTIL SHIP:APOAPSIS * 0.98 < MYORBIT {
+		WAIT 0.1.
+	}.
+	LOCK THROTTLE TO 0.
+	SET SASMODE TO "PROGRADE".
+	SAS OFF.
 }.
 
 
@@ -131,16 +134,17 @@ LOCK THROTTLE TO 0.0.
 update_screen().
 WAIT 10.  // simmah down!
 
-// let the pilot take over with RCS and stuff
-// to hold "head down" towards Kerbin.
-// May crash the program if the pilot 
-// isn't high enough level to understand 
-// "RADIALIN"
 // SASMODE Valid strings are "PROGRADE", "RETROGRADE", "NORMAL", "ANTINORMAL", "RADIALOUT", "RADIALIN", 
 // "TARGET", "ANTITARGET", "MANEUVER", "STABILITYASSIST", and "STABILITY". 
 SET SASMODE TO "STABILITY". 
 SAS ON.
 RCS ON.
+
+FOR f IN SHIP:MODULESNAMED("ModuleProceduralFairing") { f:DOEVENT("deploy"). }.
+WAIT 5.
+FOR a in SHIP:PARTSDUBBED("HighGainAntenna5") { a:DOEVENT("deploy"). }.
+SET PANELS TO TRUE. // deploy solar panels
+
 SET SHIP:CONTROL:PILOTMAINTHROTTLE TO 0.
 SET MYSTATUS TO "Returning Control to Pilot.".
 update_screen().
