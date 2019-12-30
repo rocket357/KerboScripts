@@ -74,8 +74,11 @@ SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
 LOCK STEERING TO MYSTEER. // from now on we'll be able to change steering by just assigning a new value to MYSTEER
 UNTIL SHIP:APOAPSIS > MYORBIT { //Remember, all altitudes will be in meters, not kilometers
 
-    //For the initial ascent, we want our steering to be straight
-    //up and rolled to MYHEADING
+    // Set pitch to a percentage of desired altitude.  i.e.
+    // 90 on ground, 45 halfway to MYORBIT, and 0 at MYORBIT
+    // This will have the effect of rolling the aircraft gently
+    // rather than abruptly.  May need adjustment at very high
+    // or very low values of MYORBIT.
     SET MYPITCH TO ROUND(90*((MYORBIT - SHIP:ALTITUDE) / MYORBIT), 0).
 	
     SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
