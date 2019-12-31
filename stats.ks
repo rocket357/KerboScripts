@@ -14,13 +14,13 @@ function update_screen {
 	PRINT "NAVIGATION SETTINGS:" AT (0,6).
 	PRINT "  THROTTLE:     " + ROUND(THROTTLE * 100,0) + " % " AT (0,7).
 	PRINT "  HEADING:      " + SHIP:HEADING AT (0,8).
-  PRINT "  PITCH:        " + SHIP:CONTROL:PITCH + " degrees" AT (0,9).
+	PRINT "  PITCH:        " + SHIP:CONTROL:PITCH + " degrees" AT (0,9).
 	PRINT "  YAW:          " + SHIP:CONTROL:YAW AT (0,10).
 	PRINT "  ROLL:         " + SHIP:CONTROL:ROLL AT (0,11).
 	
 	PRINT "POSITION:" AT (0,15).
 	PRINT "  ALTITUDE:     " + ROUND(SHIP:ALTITUDE,0) AT (0,16).
-  PRINT "  APOAPSIS:     " + ROUND(SHIP:APOAPSIS,0) AT (0,17).
+	PRINT "  APOAPSIS:     " + ROUND(SHIP:APOAPSIS,0) AT (0,17).
 	PRINT "  PERIAPSIS:    " + MYPERIAPSIS AT (0,18).
 	
 	PRINT "FUEL SYSTEM:" AT (0,20).
