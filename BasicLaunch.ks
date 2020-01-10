@@ -23,7 +23,7 @@ function check_threshold {
 }.
 
 function update_screen {
-	IF SHIP:PERIAPSIS < 70000 {
+	IF SHIP:PERIAPSIS < SHIP:BODY:ATM:HEIGHT {
 		SET MYPERIAPSIS TO "Sub-orbital flight.".
 	} ELSE {
 		SET MYPERIAPSIS TO ROUND(SHIP:PERIAPSIS,0).
@@ -32,20 +32,21 @@ function update_screen {
 	
 	PRINT "MISSION:" AT (0,0).
 	PRINT "  TARGET ORBIT: " + MYORBIT AT (0,1).
-	PRINT "  STATUS:       " + MYSTATUS AT (0,2).
+	PRINT "  STATUS:       " + SHIP:STATUS AT (0,2).
 	PRINT "  DEBUG: " AT (0,3).
 	
 	PRINT "NAVIGATION SETTINGS:" AT (0,6).
 	PRINT "  THROTTLE:     " + ROUND(THROTTLE * 100,0) + " % " AT (0,7).
 	PRINT "  HEADING:      " + MYHEADING AT (0,8).
-        PRINT "  PITCH:        " + MYPITCH + " degrees" AT (0,9).
-	PRINT "  YAW:          " + SHIP:YAW AT (0,10).
-	PRINT "  ROLL:         " + SHIP:ROLL AT (0,11).
-	
-	PRINT "POSITION:" AT (0,15).
-	PRINT "  ALTITUDE:     " + ROUND(SHIP:ALTITUDE,0) AT (0,16).
-        PRINT "  APOAPSIS:     " + ROUND(SHIP:APOAPSIS,0) AT (0,17).
-	PRINT "  PERIAPSIS:    " + MYPERIAPSIS AT (0,18).
+	PRINT "  PITCH:        " + MYPITCH + " degrees" AT (0,9).
+	PRINT "  YAW:          " + SHIP:CONTROL:YAW AT (0,10).
+	PRINT "  ROLL:         " + SHIP:CONTROL:ROLL AT (0,11).
+}.
+
+IF MYORBIT < SHIP:BODY:ATM:HEIGHT {
+	PRINT "WARNING: Orbit set below atmosphere ceiling!" AT (0,0).
+	PRINT "         This will *NOT* work as expected!" AT (0,1).
+	PRINT 1 / 0.
 }.
 
 GLOBAL boostereject IS 0.
