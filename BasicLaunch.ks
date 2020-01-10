@@ -1,9 +1,7 @@
 // Contains code from https://ksp-kos.github.io/KOS/tutorials/quickstart.html#step-7-putting-it-all-together
 
-GLOBAL MYSTATUS IS "PRELAUNCH".
+GLOBAL MYORBIT IS 150000. // ORBIT ALTITUDE IN METERS
 GLOBAL MYHEADING IS 0. // NORTH = 0, EAST = 90, SOUTH = etc...
-GLOBAL MYORBIT IS 250000. // ORBIT ALTITUDE IN METERS
-GLOBAL MYPITCH IS 90. // PITCH ABOVE/BELOW HORIZON.  90 is VERTICAL UP, -90 IS VERTICAL DOWN
 
 function check_threshold {
 	parameter metric.
@@ -54,95 +52,105 @@ LOCK THROTTLE TO 1.0.   // 1.0 is the max, 0.0 is idle.
 
 //This is our countdown loop, which cycles from 10 to 0
 PRINT "Counting down:".
-FROM {local countdown is 5.} UNTIL countdown = 0 STEP {SET countdown to countdown - 1.} DO {
+FROM { local countdown is 5. } UNTIL countdown = 0 STEP { SET countdown to countdown - 1.} DO {
     PRINT "..." + countdown.
     WAIT 1. // pauses the script here for 1 second.
-}
+}.
 
 CLEARSCREEN.
 
 //This is a trigger that constantly checks to see if our thrust is zero.
 WHEN MAXTHRUST = 0 THEN {
     IF boostereject = 0 AND SHIP:ALTITUDE > 1000 {
-		SET MYSTATUS TO "MAIN STAGE!".
         SET boostereject TO 1.
-		//SET SHIP:CONTROL:ROLL TO 1.0. // build up some rotation to throw boosters lulz Warn onboard kerbals first.
+		SET SHIP:CONTROL:ROLL TO 1.0. // build up some rotation to throw boosters lulz Warn onboard kerbals first.
 		WAIT 2.
         STAGE.  // launch the boosters into the abyss.
 		WAIT 2.
 		SET SHIP:CONTROL:ROLL TO 0.
     } ELSE {
-		SET MYSTATUS TO "BOOSTER STAGE!".
 		STAGE.
 	}.
 	update_screen().	
     PRESERVE.
 }.
 
-
-//This will be our main control loop for the ascent. 
-// Adjusted for my rocket.
+GLOBAL MYPITCH IS 90. // PITCH ABOVE/BELOW HORIZON.  90 is VERTICAL UP, -90 IS VERTICAL DOWN
 SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
 LOCK STEERING TO MYSTEER. // from now on we'll be able to change steering by just assigning a new value to MYSTEER
-UNTIL SHIP:APOAPSIS > MYORBIT { //Remember, all altitudes will be in meters, not kilometers
+
+UNTIL SHIP:APOAPSIS > MYORBIT {
 
     // Set pitch to a percentage of desired altitude.  i.e.
     // 90 on ground, 45 halfway to MYORBIT, and 0 at MYORBIT
     // This will have the effect of rolling the aircraft gently
     // rather than abruptly.  May need adjustment at very high
     // or very low values of MYORBIT.
-    SET MYPITCH TO ROUND(90*((MYORBIT - SHIP:ALTITUDE) / MYORBIT), 0).
+    SET MYPITCH TO ROUND(90*((MYORBIT - SHIP:ALTITUDE) / MYORBIT), 1).
 	
     SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
     update_screen().
     WAIT 1.
 }.
 
-SET MYSTATUS TO "Target APOAPSIS reached, throttle down".
+SET MYSTATUS TO "Target APOAPSIS reached".
 LOCK THROTTLE TO 0.
 
-// We need to hit ~90% of the target apoapsis
-SET TARGETAPO TO MYORBIT * 0.9.
-UNTIL SHIP:ALTITUDE > TARGETAPO {
-    update_screen().
-    WAIT 1.
+UNTIL SHIP:ALTITUDE >= SHIP:BODY:ATM:HEIGHT { // 70k for Kerbin
+	update_screen().
+	WAIT 1.
 }.
 
-// set heading and throttle to achieve orbital speed
-SET MYPITCH TO -5.
+SET MYPITCH TO -10.
 SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
-LOCK THROTTLE TO 1.0.
-SET MYSTATUS TO "Building Orbital Speed.".
-update_screen().
 
-WAIT 2. // let heading/pitch stabilize
 
-UNTIL SHIP:PERIAPSIS > MYORBIT * 0.9 {
+UNTIL SHIP:ALTITUDE >= ( MYORBIT * 0.9 ) {
+	update_screen().
+	WAIT 1.
+}.
+
+LOCK THROTTLE TO 1.
+
+UNTIL SHIP:PERIAPSIS > ( MYORBIT * 0.98 ) {
 	// Keep the APOAPSIS as close as we can to MYORBIT
-	IF SHIP:VERTICALSPEED < 0 {
-		SET MYPITCH TO 5.
-	} ELSE IF SHIP:VERTICALSPEED > 0 {
-		SET MYPITCH TO -5.
+	IF ETA:APOAPSIS < 200 AND ETA:APOAPSIS > 25 {
+		IF SHIP:APOAPSIS > ( 1.01 * MYORBIT ) AND MYPITCH > -60 { 
+			SET MYPITCH TO MYPITCH - 10.
+		} ELSE IF SHIP:APOAPSIS < ( 0.99 * MYORBIT ) {
+			SET MYPITCH TO 5.
+		} ELSE {
+			SET MYPITCH TO -5. // baseline
+		}.
+	} ELSE IF ETA:APOAPSIS > 200 {
+		IF SHIP:APOAPSIS > ( 1.01 * MYORBIT ) {
+			IF ETA:APOAPSIS > ETA:PERIAPSIS { // we've passed the APOAPSIS...catch up!
+				SET MYPITCH TO 10.
+			} ELSE {
+				IF MYPITCH > -60 {
+					SET MYPITCH TO MYPITCH - 1.
+				}.
+			}.
+		} ELSE {
+			SET MYPITCH to -5.
+		}.
+	} ELSE { // ETA:APOAPSIS is < 25 sec...we're getting close to APOAPSIS!
+		IF SHIP:ALTITUDE >= MYORBIT {
+			SET MYPITCH TO -2.
+		} ELSE IF ETA:APOAPSIS < 5 {
+			SET MYPITCH TO 10.
+		} ELSE {
+			IF SHIP:APOAPSIS > MYORBIT {
+				SET MYPITCH TO -2.
+			} ELSE {
+				SET MYPITCH TO 2.
+			}.
+		}.
 	}.
-    SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
-    update_screen().
-    WAIT 5.
+	SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
+	update_screen().
+	WAIT 0.1.
 }.
-
-// NORMALIZE MYORBIT
-// check that we're within 5% of PERIAPSIS
-IF check_threshold(SHIP:ALTITUDE, 5, SHIP:PERIAPSIS) {
-	SAS ON.
-	SET SASMODE TO "RETROGRADE".
-	LOCK THROTTLE TO 0.25.
-	UNTIL SHIP:APOAPSIS * 0.98 < MYORBIT {
-		WAIT 0.1.
-	}.
-	LOCK THROTTLE TO 0.
-	SET SASMODE TO "PROGRADE".
-	SAS OFF.
-}.
-
 
 // we're in orbit, dammit
 LOCK THROTTLE TO 0.0.
@@ -155,16 +163,8 @@ SET SASMODE TO "STABILITY".
 SAS ON.
 RCS ON.
 
-FOR f IN SHIP:MODULESNAMED("ModuleProceduralFairing") { f:DOEVENT("deploy"). }.
-WAIT 5.
-FOR a in SHIP:PARTSDUBBED("HighGainAntenna5") { a:DOEVENT("deploy"). }.
-SET PANELS TO TRUE. // deploy solar panels
 
 SET SHIP:CONTROL:PILOTMAINTHROTTLE TO 0.
+
 SET MYSTATUS TO "Returning Control to Pilot.".
 update_screen().
-// :wq
-UNTIL 1 < 0 { // loop forever!  (Screen updates)
-	WAIT 1.
-	update_screen().
-}
