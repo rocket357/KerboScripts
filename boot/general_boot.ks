@@ -19,7 +19,7 @@ GLOBAL SHIPTYPE IS SHIP:TYPE.
 GLOBAL OLDSTAGE IS STAGE:NUMBER.
 
 // NAVIGATION INFO
-GLOBAL MYORBIT IS 250000.  // orbit, in meters, might get overridden later
+GLOBAL MYORBIT IS 120000.  // orbit, in meters, might get overridden later
 GLOBAL MYALTITUDE IS 4000. // flight altitude, in meters, might get overridden later
 GLOBAL MYHEADING IS 90. // NORTH = 0, EAST = 90, SOUTH = 180, WEST = 270
 GLOBAL MYPITCH IS 90. // PITCH ABOVE/BELOW HORIZON.  90 is VERTICAL UP, -90 IS VERTICAL DOWN
@@ -210,7 +210,7 @@ function update_screen_common {
 		} ELSE IF res:NAME = "OXIDIZER" {
 			SET OXCURR TO res:AMOUNT.
 			SET OXTOTAL TO res:CAPACITY.
-		} ELSE IF res:NAME = "MONOPROP" {
+		} ELSE IF res:NAME = "MONOPROPELLANT" {
 			SET MPCURR TO res:AMOUNT.
 			SET MPTOTAL TO res:CAPACITY.
 		}.
@@ -222,7 +222,7 @@ function update_screen_common {
 	IF ECTOTAL > 0 {
 		PRINT ROUND((100*ECCURR)/ECTOTAL,2) + "% REMAINING" AT (30,24).
 	}.
-	PRINT "  MONOPROP:        " + ROUND(MPCURR,2) AT (0,25).
+	PRINT "  MONOPROPELLANT:  " + ROUND(MPCURR,2) AT (0,25).
 	IF MPTOTAL > 0 {
 		PRINT ROUND((100*MPCURR)/MPTOTAL,2) + "% REMAINING" AT (30,25).
 	}.
@@ -248,7 +248,9 @@ function update_screen_common {
 
 function launch {
 	parameter MYCUSTOMORBIT.
+	parameter MYCUSTOMHEADING.
 	GLOBAL MYORBIT IS MYCUSTOMORBIT.
+	GLOBAL MYHEADING IS MYCUSTOMHEADING.
 	
 	SET LAUNCHINPROGRESS TO 1.
 
@@ -268,63 +270,16 @@ function launch {
 		update_screen().
 		WAIT 1.
 	}.
-	
-	// wait until we're up out of the atmosphere, then set pitch and wait to hit 90% of MYORBIT
 	LOCK THROTTLE TO 0.
-	UNTIL SHIP:ALTITUDE >= SHIP:BODY:ATM:HEIGHT { // 70k for Kerbin
-		update_screen().
-		WAIT 1.
-	}.
-	SET MYPITCH TO -10.
-	SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
-	UNTIL SHIP:ALTITUDE >= ( MYORBIT * 0.9 ) {
-		update_screen().
-		WAIT 1.
-	}.
 	
-	// build orbital velocity
-	LOCK THROTTLE TO 1.
-	UNTIL SHIP:PERIAPSIS > ( MYORBIT * 0.98 ) {  // get periapsis up to MYORBIT
-		// Keep the APOAPSIS as close as we can to MYORBIT
-		IF ETA:APOAPSIS < 200 AND ETA:APOAPSIS > 25 {
-			IF SHIP:APOAPSIS > ( 1.01 * MYORBIT ) AND MYPITCH > -60 { 
-				SET MYPITCH TO MYPITCH - 5.
-			} ELSE IF SHIP:APOAPSIS < ( 0.99 * MYORBIT ) {
-				SET MYPITCH TO 5.
-			} ELSE {
-				SET MYPITCH TO 2. // baseline
-			}.
-		} ELSE IF ETA:APOAPSIS > 200 {
-			IF SHIP:APOAPSIS > ( 1.01 * MYORBIT ) {
-				IF ETA:APOAPSIS > ETA:PERIAPSIS { // we've passed the APOAPSIS...catch up!
-					SET MYPITCH TO 25.
-				} ELSE {
-					IF MYPITCH > -60 {
-						SET MYPITCH TO MYPITCH - 1.
-					}.
-				}.
-			} ELSE {
-				SET MYPITCH to -5.
-			}.
-		} ELSE { // ETA:APOAPSIS is < 25 sec...we're getting close to APOAPSIS!
-			IF SHIP:ALTITUDE >= MYORBIT {
-				SET MYPITCH TO -2.
-			} ELSE IF ETA:APOAPSIS < 20 {
-				SET MYPITCH TO 15.
-			} ELSE IF ETA:APOAPSIS < 15 {
-				SET MYPITCH TO 25.
-			} ELSE {
-				IF SHIP:APOAPSIS > MYORBIT {
-					SET MYPITCH TO -2.
-				} ELSE {
-					SET MYPITCH TO 2.
-				}.
-			}.
-		}.
-		SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
-		update_screen().
-		WAIT 0.1.
-	}.
+	// create a maneuver node to circularize orbit.
+	SET V_CUR TO SQRT(SHIP:BODY:MU * (2/(MYORBIT + SHIP:BODY:RADIUS) - 2/(SHIP:PERIAPSIS + MYORBIT + 2*SHIP:BODY:RADIUS))).
+	SET V_NEW TO SQRT(SHIP:BODY:MU * (2/(MYORBIT + SHIP:BODY:RADIUS) - 2/(2*MYORBIT + 2*SHIP:BODY:RADIUS))).
+	SET DV_PROGRADE TO V_NEW - V_CUR.
+	SET X TO NODE(TIME:SECONDS + ETA:APOAPSIS, 0, 0, DV_PROGRADE). // Time, Radial, Normal, Prograde
+	ADD X.
+	
+	run execnode. // execute the node
 	
 	LOCK THROTTLE TO 0.0.
 	update_screen().
@@ -398,6 +353,6 @@ IF SHIPTYPE = "Rover" {
 } ELSE {
 	// do ship stuff
 	IF SHIP:BODY:NAME = "Kerbin" {
-		launch(MYORBIT).
+		launch(MYORBIT,MYHEADING).
 	}.
 }.
