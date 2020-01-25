@@ -45,28 +45,28 @@ GLOBAL INFLIGHT IS 0.  // flying a plane
 // STAGE DURING LAUNCH, IF APPROPRIATE AND SAFE lulz.
 WHEN LAUNCHINPROGRESS = 1 AND MAXSFUEL > 0 AND STAGE:SOLIDFUEL = 0 THEN {
 	log_message("LAUNCHINPROGRESS THRUST TRIGGER...").
-    IF boostereject = 0 AND SHIP:ALTITUDE > 1000 {
-        SET boostereject TO 1.
+   	IF boostereject = 0 AND SHIP:ALTITUDE > 1000 {
+		SET boostereject TO 1.
 		SET SHIP:CONTROL:ROLL TO 1.0. // build up some rotation to throw boosters lulz Warn onboard kerbals first.
 		WAIT 2.
-        STAGE.  // launch the boosters into the abyss.
+		STAGE.  // launch the boosters into the abyss.
 		WAIT 2.
 		SET SHIP:CONTROL:ROLL TO 0.
-    } ELSE {
+	} ELSE {
 		STAGE.
 	}.
 	update_screen().	
-    PRESERVE.
+	PRESERVE.
 }.
 
 WHEN INFLIGHT = 1 AND SHIP:ALTITUDE > (MYALTITUDE * 1.01) THEN {
 	SET MYPITCH TO -2.
-    PRESERVE.
+	PRESERVE.
 }.
 
 WHEN INFLIGHT = 1 AND SHIP:ALTITUDE < (MYALTITUDE * 0.99) AND SHIP:ALTITUDE > (MYALTITUDE * 0.95) THEN {
 	SET MYPITCH TO 2.
-    PRESERVE.
+	PRESERVE.
 }.
 // ***********************
 // END TRIGGERS
