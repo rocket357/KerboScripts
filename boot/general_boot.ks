@@ -24,6 +24,9 @@ GLOBAL MYALTITUDE IS 4000. // flight altitude, in meters, might get overridden l
 GLOBAL MYHEADING IS 90. // NORTH = 0, EAST = 90, SOUTH = 180, WEST = 270
 GLOBAL MYPITCH IS 90. // PITCH ABOVE/BELOW HORIZON.  90 is VERTICAL UP, -90 IS VERTICAL DOWN
 
+// MISSION INFO
+GLOBAL MYWAYPOINTS IS ALLWAYPOINTS().
+
 
 // SAFETY INFOS
 GLOBAL boostereject IS 0.
@@ -81,17 +84,28 @@ function log_message {
 	LOG KUNIVERSE:REALTIME + " - " + message TO boot.log.
 }.
 
+function get_bearing {
+	// from https://www.movable-type.co.uk/scripts/latlong.html
+	// Formula:	θ = atan2( sin Δλ ⋅ cos φ2 , cos φ1 ⋅ sin φ2 − sin φ1 ⋅ cos φ2 ⋅ cos Δλ )
+	// where	φ1,λ1 is the start point, φ2,λ2 the end point (Δλ is the difference in longitude)
+	parameter DSTLAT.
+	parameter DSTLNG.
+	
+	SET SRCLAT TO SHIP:LATITUDE.
+	SET DELTALNG TO DSTLNG - SHIP:LONGITUDE.
+	
+	SET MYBEARING TO ARCTAN2(SIN(DELTALNG) * COS(DSTLAT), COS(SRCLAT) * SIN(DSTLAT) - SIN(SRCLAT) * COS(DSTLAT) * COS(DELTALNG)).
+	RETURN ROUND(MOD(MYBEARING + 360, 360),0).
+}.
+
 function check_threshold {
 	parameter metric.
 	parameter tolerance.
 	parameter target.
 	
-	// DEBUG
-	//PRINT "check_threshold: " + metric + " " + tolerance + " " + target AT (10,3).
-	
-	IF (metric * (1 + tolerance / 100)) < target AND (metric * (1 - tolerance / 100)) > target {
+	IF metric * (1 + tolerance / 100) < target AND metric * (1 - tolerance / 100) > target {
 		RETURN 1.  // within tolerance
-	} ELSE IF (metric * (1 + tolerance / 100)) < target {
+	} ELSE IF metric * (1 + tolerance / 100) < target {
 		RETURN -1.  // below threshold
 	} ELSE {
 		RETURN 2.  // over threshold
@@ -259,16 +273,24 @@ function launch {
 	LOCK STEERING TO MYSTEER. // from now on we'll be able to change steering by just assigning a new value to MYSTEER
 
 	UNTIL SHIP:APOAPSIS > MYORBIT { // get apoapsis up to MYORBIT
+	
+		// from 0 to 10km we want to aggressively pitch down 45 degrees.
 		UNTIL SHIP:ALTITUDE > 10000 {
 			SET MYPITCH TO 45 + ROUND(45*(10000 - SHIP:ALTITUDE) / 10000, 1).
 			SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
 			update_screen().
 			WAIT 0.1.
 		}.
-		SET MYPITCH TO 45.
-		SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
+		
+		// from 10km to MYORBIT pitch the remaining way until 10 degrees.
+		UNTIL SHIP:APOAPSIS > MYORBIT {
+			SET MYPITCH TO ROUND(45*(MYORBIT - SHIP:ALTITUDE) / MYORBIT, 1).
+			SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
+			update_screen().
+			WAIT 0.1.
+		}.
 		update_screen().
-		WAIT 1.
+		WAIT 0.1.
 	}.
 	LOCK THROTTLE TO 0.
 	
@@ -290,6 +312,12 @@ function launch {
 	SET SHIP:CONTROL:PILOTMAINTHROTTLE TO 0.
 	
 	SET LAUNCHINPROGRESS TO 0.
+	
+	// we're in orbit, let's do typical in-orbit stuff
+	FOR f IN SHIP:MODULESNAMED("ModuleProceduralFairing") { f:DOEVENT("deploy"). }.
+	WAIT 1.0.
+	SET PANELS TO TRUE.
+	
 }.
 
 function takeoff {
@@ -316,9 +344,9 @@ function takeoff {
 		update_screen().
 	}.
 
+	SAS OFF.
+	RCS OFF.
 	SET GEAR TO FALSE.
-	SAS ON.
-	RCS ON.
 	SET INFLIGHT TO 1.
 
 	UNTIL SHIP:ALTITUDE >= MYALTITUDE {
@@ -329,6 +357,40 @@ function takeoff {
 		}.
 		update_screen().
 		WAIT 1.
+	}.
+	
+	IF MYWAYPOINTS:LENGTH > 0 {
+		FOR WAYPOINT IN MYWAYPOINTS {
+			navigate_to(WAYPOINT:GEOCOORDINATES:LAT,WAYPOINT:GEOCOORDINATES:LNG).
+			WAIT 1.
+		}.
+	}.
+}.
+
+function navigate_to {
+	parameter LAT.
+	parameter LNG.
+	
+	SET ERROR TO 5. // 5% allowable error
+	
+	until check_threshold(SHIP:LATITUDE,ERROR,LAT) = 1 AND check_threshold(SHIP:LONGITUDE,ERROR,LNG) = 1 { // until we're ERROR% within LAT/LNG
+		SET DSTHEADING TO ROUND(get_bearing(LAT,LNG),2).
+		
+		IF MYHEADING > (DSTHEADING + 2) {
+			SET MYHEADING TO MYHEADING - 1.
+		} ELSE IF MYHEADING < (DSTHEADING - 2) {
+			SET MYHEADING TO MYHEADING + 1.
+		} ELSE {
+			SET MYHEADING TO ROUND(DSTHEADING,1).
+		}.
+		
+		IF SHIP:TYPE = "Rover" {
+			LOCK WHEELSTEERING TO MYHEADING.
+		} ELSE {
+			SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
+		}.
+		update_screen().
+		WAIT 0.1.
 	}.
 }.
 
@@ -349,7 +411,7 @@ IF SHIPTYPE = "Rover" {
 	// do rover automation stuff.
 } ELSE IF SHIPTYPE = "Plane" {
 	// do plane automation stuff.
-	takeoff(1000).
+	takeoff(MYALTITUDE).
 } ELSE {
 	// do ship stuff
 	IF SHIP:BODY:NAME = "Kerbin" {
