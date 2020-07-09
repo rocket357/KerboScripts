@@ -316,7 +316,7 @@ function launch {
 		
 		// from 10km to MYORBIT pitch the remaining way until 10 degrees.
 		UNTIL SHIP:APOAPSIS > MYORBIT {
-			SET MYPITCH TO ROUND(45*(MYORBIT - (SHIP:ALTITUDE - 10000) ) / MYORBIT, 1).
+			SET MYPITCH TO ROUND(45*((MYORBIT - (SHIP:ALTITUDE - 10000)) / MYORBIT), 1).
 			SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
 			update_screen().
 			WAIT 0.1.
