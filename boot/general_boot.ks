@@ -306,7 +306,7 @@ function launch {
 
 	UNTIL SHIP:APOAPSIS > MYORBIT { // get apoapsis up to MYORBIT
 	
-		// from 0 to 10km we want to aggressively pitch down 45 degrees.
+		// from 0 to 10km we want to aggressively pitch down to 45 degrees.
 		UNTIL SHIP:ALTITUDE > 10000 {
 			SET MYPITCH TO 45 + ROUND(45*(10000 - SHIP:ALTITUDE) / 10000, 1).
 			SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
@@ -316,7 +316,7 @@ function launch {
 		
 		// from 10km to MYORBIT pitch the remaining way until 10 degrees.
 		UNTIL SHIP:APOAPSIS > MYORBIT {
-			SET MYPITCH TO ROUND(45*(MYORBIT - SHIP:ALTITUDE) / MYORBIT, 1).
+			SET MYPITCH TO ROUND(45*(MYORBIT - (SHIP:ALTITUDE - 10000) ) / MYORBIT, 1).
 			SET MYSTEER TO HEADING(MYHEADING,MYPITCH).
 			update_screen().
 			WAIT 0.1.
