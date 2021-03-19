@@ -1,5 +1,5 @@
 # KerboScripts
-A collection of some kerboscripts for KSP - KOS
+A collection of some kerboscripts for Kerbal Space Program - Kerbal Operating System
 
 - basicLaunch.ks - automate launching a rocket into orbit around Kerbin.
 - basicTakeOff.ks - automate taking off from the runway.
